@@ -8,16 +8,10 @@ from app.config import app
 from app.pymodels import Post, Todo, posts, todos
 
 
-@app.post("/todos/", response_model=Todo)
+@app.post("/todos", response_model=Todo)
 async def create_todo(todo: Todo):
     """
     Для создания новой задачи
-    Args:
-        todo (Todo): задача
-    Поля задачи:
-        title (str): заголовок
-        description (str): описание
-        completed (bool): выполнена или нет
     """
     max_id = max(todos, key=attrgetter('id')).id
     todo.id = max_id + 1
@@ -27,7 +21,7 @@ async def create_todo(todo: Todo):
     return todo
 
 
-@app.get("/todos/", response_model=List[Todo])
+@app.get("/todos", response_model=List[Todo])
 async def read_todos():
     """
     Для получения списка задач
@@ -39,8 +33,6 @@ async def read_todos():
 async def read_todo(todo_id: int):
     """
     Для получения данных об одной задаче
-    Args:
-        todo_id (int): id задачи
     """
     if todo_id < 0:
         raise HTTPException(status_code=404, detail="Todo not found")
@@ -55,16 +47,19 @@ async def read_todo(todo_id: int):
 async def update_todo(todo_id: int, todo: Todo):
     """
     Для обновления задачи
-    Args:
-        todo_id (int): id задачи
     """
     if todo_id < 0:
         raise HTTPException(status_code=404, detail="Todo not found")
 
     try:
-        db_todo = list(filter(lambda t: t.id == todo_id, todos))[0]
-        db_todo = {"id": todo_id, **todo.dict()}
-        return db_todo
+        # check if todo exists in list, update its fields from dictionary given, remove old from list and insert new updated version into list
+        todo_to_update = list(filter(lambda t: t.id == todo_id, todos))[0]
+        todo_to_update.title = todo.title if todo.title else todo_to_update.title
+        todo_to_update.description = todo.description if todo.description else todo_to_update.description
+        todo_to_update.completed = todo.completed if todo.completed else todo_to_update.completed
+        todos.remove(todo_to_update)
+        todos.append(todo_to_update)
+        return todo_to_update
     except IndexError:
         raise HTTPException(status_code=404, detail="Todo not found")
 
@@ -73,8 +68,6 @@ async def update_todo(todo_id: int, todo: Todo):
 async def delete_todo(todo_id: int):
     """
     Для удаления задачи
-    Args:
-        todo_id (int): id задачи
     """
     if todo_id < 0:
         raise HTTPException(status_code=404, detail="Todo not found")
@@ -100,8 +93,6 @@ async def read_post(
         ):
     """
     Для получения одного поста по его id
-    Args:
-        post_id (int): id поста
     """
     if post_id < 0:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -110,3 +101,8 @@ async def read_post(
         return post
     except IndexError:
         raise HTTPException(status_code=404, detail="Post not found")
+
+
+@app.exception_handler(404)
+async def not_found(request, exc):
+    return {"detail": "Not found"}, 404
