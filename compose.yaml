@@ -1,0 +1,9 @@
+# Generate compose for container with fastapi app
+version: '3.11'
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: 8000
